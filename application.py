@@ -110,6 +110,43 @@ def search():
 
     return render_template('search.html', books=books)
 
+
+# Getting book infomation from google books api
+def get_google_books_info(isbn):
+    response = requests.get(f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}")
+    if response.status_code == 200:
+        data = response.json()
+        book = data["items"][0]
+        return book["volumeInfo"]
+    else:
+        print("Google Books API Error: ")
+        return None
+    
+# Ask Gemini to summarize description
+def gemini_summarize_description(description):
+    data = {
+        "contents": [{
+            "parts": [{
+                "text": "summarize this text using less than 50 words: " + description
+            }]
+        }]
+    }
+    json_data = json.dumps(data)
+
+    apikey = os.environ['GEMINI_API_KEY']
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apikey}"
+    response = requests.post(url, data=json_data, headers={"Content-Type": "application/json"})
+    result = response.json()
+
+    if "candidates" in result:
+        summary = result["candidates"][0]["content"]["parts"][0]["text"]
+    else:
+        print("ERROR: No Gemini result!")
+        summary = description
+        
+    return summary
+
+
 @app.route("/book/<string:isbn>")
 def book(isbn):
     if not session.get('username'):
@@ -120,8 +157,49 @@ def book(isbn):
         books = connection.execute(qry, {"isbn": isbn})
         qry = text("select * from reviews where isbn=:isbn")
         reviews = connection.execute(qry, {"isbn": isbn})
+    book=books.first()
 
-    return render_template('book.html', book=books.first(), reviews=reviews)
+    bookinfo = get_google_books_info(isbn)
+    description = bookinfo.get("description")
+    ratingsCount = bookinfo.get("ratingsCount")
+    averageRating = bookinfo.get("averageRating")
+
+    summary = gemini_summarize_description(description)
+
+    return render_template('book.html', 
+                           book=book,
+                           description=description, 
+                           ratingsCount=ratingsCount, 
+                           averageRating=averageRating,
+                           summary=summary, 
+                           reviews=reviews)
+
+@app.route("/book/<string:isbn>")
+def book(isbn):
+    if not session.get('username'):
+        return redirect(url_for('index'))
+    
+    with engine.connect() as connection:
+        qry = text("select * from books where isbn=:isbn")
+        books = connection.execute(qry, {"isbn": isbn})
+        qry = text("select * from reviews where isbn=:isbn")
+        reviews = connection.execute(qry, {"isbn": isbn})
+    book=books.first()
+
+    bookinfo = get_google_books_info(isbn)
+    description = bookinfo.get("description")
+    ratingsCount = bookinfo.get("ratingsCount")
+    averageRating = bookinfo.get("averageRating")
+
+    summary = gemini_summarize_description(description)
+
+    return render_template('book.html', 
+                           book=book,
+                           description=description, 
+                           ratingsCount=ratingsCount, 
+                           averageRating=averageRating,
+                           summary=summary, 
+                           reviews=reviews)
 
 @app.route("/review", methods=["POST"])
 def review():
