@@ -1,4 +1,5 @@
 import os
+import requests
 
 from flask import Flask, session, render_template, request, flash, redirect, url_for
 from flask_session import Session
@@ -129,13 +130,20 @@ def review():
         return redirect(url_for('index'))
     
     isbn = request.form['isbn']
+    rating = request.form['rating']
     comment = request.form['comment']
     if not comment:
         flash('Please input your comment!')
     else:
         with engine.connect() as connection:
-            qry = text("insert into reviews(isbn,username,comment) values (:isbn, :username, :comment)")
-            connection.execute(qry, {"isbn": isbn, "username": username, "comment": comment})
-            connection.commit()
-            connection.close()
+            qry = text(f"select * from reviews where username='{username}' and isbn='{isbn}'")
+            reviews = connection.execute(qry)
+        if reviews.first():
+            flash('You have already left a review about this book!')
+        else:
+            with engine.connect() as connection:
+                qry = text("insert into reviews(isbn,username,comment,rating) values (:isbn, :username, :comment, :rating)")
+                connection.execute(qry, {"isbn": isbn, "username": username, "comment": comment, "rating": rating})
+                connection.commit()
+                connection.close()
     return redirect(url_for('book', isbn=isbn))
