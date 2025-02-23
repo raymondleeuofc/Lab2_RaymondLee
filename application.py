@@ -3,7 +3,6 @@ import os
 from flask import Flask, session, render_template, request, flash, redirect, url_for
 from flask_session import Session
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 app = Flask(__name__)
 
@@ -18,7 +17,6 @@ Session(app)
 
 # Set up database
 engine = create_engine(os.getenv("DATABASE_URL"))
-db = scoped_session(sessionmaker(bind=engine))
 
 
 @app.route("/")
