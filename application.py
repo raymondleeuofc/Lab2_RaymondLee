@@ -147,32 +147,57 @@ def gemini_summarize_description(description):
     return summary
 
 
-@app.route("/book/<string:isbn>")
-def book(isbn):
+@app.route("/api/<string:isbn>")
+def api(isbn):
     if not session.get('username'):
         return redirect(url_for('index'))
     
     with engine.connect() as connection:
         qry = text("select * from books where isbn=:isbn")
         books = connection.execute(qry, {"isbn": isbn})
-        qry = text("select * from reviews where isbn=:isbn")
-        reviews = connection.execute(qry, {"isbn": isbn})
-    book=books.first()
+    
+    book = books.first()
+    if book:
+        book = book._asdict()
+    else:
+        abort(404)
+
+    description = None
+    publishedDate = None
+    ratingsCount = None
+    averageRating = None
+    isbn10 = None
+    isbn13 = None
+    summarizedDescription = None
 
     bookinfo = get_google_books_info(isbn)
-    description = bookinfo.get("description")
-    ratingsCount = bookinfo.get("ratingsCount")
-    averageRating = bookinfo.get("averageRating")
+    if bookinfo:
+        description = bookinfo.get("description", None)
+        publishedDate = bookinfo.get("publishedDate", None)
+        ratingsCount = bookinfo.get("ratingsCount", None)
+        averageRating = bookinfo.get("averageRating", None)
+        industryIdentifiers = bookinfo.get("industryIdentifiers")
+    if industryIdentifiers:
+        for x in industryIdentifiers:
+            if x["type"] == "ISBN_13":
+                isbn13 = x["identifier"]
+            elif x["type"] == "ISBN_10":
+                isbn10 = x["identifier"]
+    if description:
+        summarizedDescription = gemini_summarize_description(description)
 
-    summary = gemini_summarize_description(description)
-
-    return render_template('book.html', 
-                           book=book,
-                           description=description, 
-                           ratingsCount=ratingsCount, 
-                           averageRating=averageRating,
-                           summary=summary, 
-                           reviews=reviews)
+    data = {
+        "title": book["title"],
+        "author": book["author"],
+        "publishedDate": publishedDate,
+        "ISBN_10": isbn10,
+        "ISBN_13": isbn13,
+        "reviewCount": ratingsCount,
+        "averageRating": averageRating,
+        "summarizedDescription": summarizedDescription,
+        "description": description,
+    }
+    return data
 
 @app.route("/book/<string:isbn>")
 def book(isbn):
