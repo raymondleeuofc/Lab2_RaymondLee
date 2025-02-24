@@ -19,10 +19,12 @@ CREATE TABLE reviews (
     isbn CHAR(10) NOT NULL,
     username VARCHAR(16) NOT NULL,
     comment VARCHAR(255) NOT NULL,
+    rating INTEGER NOT NULL,
     CONSTRAINT fk_book
       FOREIGN KEY(isbn)
         REFERENCES books(isbn),
     CONSTRAINT fk_user
       FOREIGN KEY(username)
-        REFERENCES users(username)
+        REFERENCES users(username),
+    UNIQUE (isbn, username)
 );

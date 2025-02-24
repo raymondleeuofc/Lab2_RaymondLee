@@ -1,7 +1,7 @@
 import os
 import requests
 
-from flask import Flask, session, render_template, request, flash, redirect, url_for
+from flask import Flask, session, json, render_template, request, flash, redirect, url_for
 from flask_session import Session
 from sqlalchemy import create_engine, text
 
