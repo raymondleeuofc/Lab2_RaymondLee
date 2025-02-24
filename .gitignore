@@ -2,3 +2,5 @@ run.bat
 __pycache__/application.cpython-312.pyc
 flask_session/2029240f6d1128be89ddc32729463129
 flask_session/4dc210d64a738a1f21cbb05f6860ab09
+run.bat
+flask_session/98b011707fea1030923c2b42665ccb6a

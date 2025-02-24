@@ -1,7 +1,7 @@
 import os
 import requests
 
-from flask import Flask, session, json, render_template, request, flash, redirect, url_for
+from flask import Flask, abort, session, json, render_template, request, flash, redirect, url_for
 from flask_session import Session
 from sqlalchemy import create_engine, text
 
@@ -116,12 +116,12 @@ def get_google_books_info(isbn):
     response = requests.get(f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}")
     if response.status_code == 200:
         data = response.json()
-        book = data["items"][0]
-        return book["volumeInfo"]
-    else:
-        print("Google Books API Error: ")
-        return None
-    
+        if "items" in data:
+            book = data["items"][0]
+            return book["volumeInfo"]
+    print("Google Books API Error: ")
+    return None
+
 # Ask Gemini to summarize description
 def gemini_summarize_description(description):
     data = {
@@ -169,6 +169,7 @@ def api(isbn):
     isbn10 = None
     isbn13 = None
     summarizedDescription = None
+    industryIdentifiers = None
 
     bookinfo = get_google_books_info(isbn)
     if bookinfo:
@@ -212,11 +213,16 @@ def book(isbn):
     book=books.first()
 
     bookinfo = get_google_books_info(isbn)
-    description = bookinfo.get("description")
-    ratingsCount = bookinfo.get("ratingsCount")
-    averageRating = bookinfo.get("averageRating")
-
-    summary = gemini_summarize_description(description)
+    if bookinfo:
+        description = bookinfo.get("description")
+        ratingsCount = bookinfo.get("ratingsCount")
+        averageRating = bookinfo.get("averageRating")
+        summary = gemini_summarize_description(description)
+    else:
+        description = None
+        ratingsCount = None
+        averageRating = None
+        summary = None
 
     return render_template('book.html', 
                            book=book,
